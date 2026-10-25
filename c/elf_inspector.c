@@ -1,0 +1,561 @@
+#include <stdio.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+#include "elf_inspector.h"
+
+#define FLAGS_STR_LEN 14
+
+/*
+ *  prints the following template:
+ *  "0xXXXXXXXX (X bytes) <struct.field>: <field value according to conv_spec>"
+ *  
+ *  - struct:    a struct
+ *  - field:     a field of the struct
+ *  - offset:    an int added to the offsetof value when printing address
+ *  - conv_spec: a string containing a conversion specifier placed at the end of the
+ *               printf format string
+ */
+#define PRINT_FIELD(struct, field, offset, conv_spec) printf( \
+    "0x%08lX (%lu bytes) %s: " conv_spec,                     \
+    offset + offsetof(typeof((struct)), field),               \
+    sizeof((struct).field),                                   \
+    #struct "." #field,                                       \
+    (struct).field                                            \
+)
+
+// const char *st_bind_strs[] = {
+//     "stb_local",
+//     "stb_global",
+//     "stb_weak",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "stb_loos",
+//     "ERROR invalid",
+//     "stb_hios",
+//     "stb_loproc",
+//     "stb_hiproc"
+// };
+
+// const char *st_type_strs[] = {
+//     "STT_NOTYPE",
+//     "STT_OBJECT",
+//     "STT_FUNC",
+//     "STT_SECTION",
+//     "STT_FILE",
+//     "STT_COMMON",
+//     "STT_TLS",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "ERROR invalid",
+//     "STT_LOOS",
+//     "ERROR invalid",
+//     "STT_HIOS",
+//     "STT_LOPROC",
+//     "ERROR invalid",
+//     "STT_HIPROC"
+// };
+
+
+
+
+void populate_section_header_flags(Elf64_Xword bits, char *buf);
+char *get_section_name(ElfFile elf_file, int shndx);
+char *get_str_from_section(ElfFile elf_file, int shndx, int offset);
+const char *e_type_str(Elf64_Half e_type);
+const char *shn_str(Elf64_Half shn);
+const char *sh_type_str(int sh_type);
+
+
+
+
+
+const char *sh_type_str(int sh_type) {
+    switch (sh_type) {
+        case SHT_NULL: return "SHT_NULL";
+        case SHT_PROGBITS: return "SHT_PROGBITS";
+        case SHT_SYMTAB: return "SHT_SYMTAB";
+        case SHT_STRTAB: return "SHT_STRTAB";
+        case SHT_RELA: return "SHT_RELA";
+        case SHT_HASH: return "SHT_HASH";
+        case SHT_DYNAMIC: return "SHT_DYNAMIC";
+        case SHT_NOTE: return "SHT_NOTE";
+        case SHT_NOBITS: return "SHT_NOBITS";
+        case SHT_REL: return "SHT_REL";
+        case SHT_SHLIB: return "SHT_SHLIB";
+        case SHT_DYNSYM: return "SHT_DYNSYM";
+        case SHT_INIT_ARRAY: return "SHT_INIT_ARRAY";
+        case SHT_FINI_ARRAY: return "SHT_FINI_ARRAY";
+        case SHT_PREINIT_ARRAY: return "SHT_PREINIT_ARRAY";
+        case SHT_GROUP: return "SHT_GROUP";
+        case SHT_SYMTAB_SHNDX: return "SHT_SYMTAB_SHNDX";
+        case SHT_RELR: return "SHT_RELR";
+    }
+
+    if (SHT_LOOS <= sh_type && sh_type <= SHT_HIOS) return "os specific";
+
+    if (SHT_LOPROC <= sh_type && sh_type <= SHT_HIPROC)
+        return "processor specific";
+
+    if (SHT_LOUSER <= sh_type && sh_type <= SHT_LOUSER)
+        return "application specific";
+
+    return "ERROR unrecognized";
+}
+
+const char *shn_str(Elf64_Half shn) {
+    if (shn == SHN_UNDEF) return "SHN_UNDEF";
+
+    if (shn < SHN_LORESERVE) return "normal index";
+
+    if (SHN_LOPROC <= shn && shn <= SHN_HIPROC) return "processor specific";
+
+    if (SHN_LOOS <= shn && shn <= SHN_HIOS) return "os specific";
+
+    switch (shn) {
+        case SHN_ABS: return "SHN_ABS";
+        case SHN_COMMON: return "SHN_COMMON";
+        case SHN_XINDEX: return "SHN_XINDEX";
+    }
+
+    return "ERROR unrecognized";
+}
+
+const char *e_type_str(Elf64_Half e_type) {
+    switch (e_type) {
+        case ET_NONE: return "ET_NONE";
+        case ET_REL: return "ET_REL";
+        case ET_EXEC: return "ET_EXEC";
+        case ET_DYN: return "ET_DYN";
+        case ET_CORE: return "ET_CORE";
+    };
+
+    if (ET_LOOS <= e_type && e_type <= ET_HIOS) return "OS specific";
+
+    if (ET_LOPROC <= e_type && e_type <= ET_HIPROC) return "processor specific";
+
+    return "ERROR unrecognized";
+}
+
+char *get_str_from_section(ElfFile elf_file, int shndx, int offset) {
+    if (elf_file.section_table[shndx].sh_type != SHT_STRTAB) return NULL;
+
+    return elf_file.origin
+         + elf_file.section_table[shndx].sh_offset
+         + offset;
+}
+
+char *get_section_name(ElfFile elf_file, int shndx) {
+    if (shndx >= elf_file.header->e_shnum) return NULL;
+
+    return get_str_from_section(
+        elf_file,
+        elf_file.header->e_shstrndx,
+        elf_file.section_table[shndx].sh_name
+    );
+}
+
+void populate_section_header_flags(Elf64_Xword bits, char *buf) {
+    typedef struct {
+        char flag;
+        Elf64_Xword mask;
+    } FlagAndMask;
+
+    FlagAndMask data[] = {
+        { 'W', 0x1 },
+        { 'A', 0x2 },
+        { 'X', 0x4 },
+        { 'M', 0x10 },
+        { 'S', 0x20 },
+        { 'I', 0x40 },
+        { 'L', 0x80 },
+        { 'O', 0x100 },
+        { 'G', 0x200 },
+        { 'T', 0x400 },
+        { 'C', 0x800 },
+        { 'o', 0x0FF00000 },
+        { 'p', 0xF0000000 }
+    };
+
+    int buf_i = 0;
+    for (int i = 0; i < sizeof(data) / sizeof(data[0]); i++) {
+        if (data[i].mask & bits) {
+            buf[buf_i++] = data[i].flag;
+        }
+    }
+}
+
+
+
+void print_sections(ElfFile elf_file) {
+    Elf64_Half shnum = elf_file.header->e_shnum;
+
+    printf("0x%08lX [START sections]\n", elf_file.section_table[1].sh_offset);
+
+    for (int i = 0; i < shnum; i++) {
+        print_section(elf_file, i);
+    }
+
+    printf(
+        "0x%08lX [END sections]\n",
+        elf_file.section_table[shnum - 1].sh_offset +
+        elf_file.section_table[shnum - 1].sh_size
+    );
+}
+
+void print_section(ElfFile elf_file, int shndx) {
+    if (shndx == SHT_NULL) return;
+
+    switch (elf_file.section_table[shndx].sh_type) {
+        case SHT_PROGBITS:
+        case SHT_SYMTAB:
+            break;
+
+        case SHT_STRTAB:
+            print_section_strtab(elf_file, shndx);
+            return;
+
+        case SHT_RELA:
+        case SHT_HASH:
+        case SHT_DYNAMIC:
+        case SHT_NOTE:
+        case SHT_NOBITS:
+        case SHT_REL:
+        case SHT_SHLIB:
+        case SHT_DYNSYM:
+        case SHT_INIT_ARRAY:
+        case SHT_FINI_ARRAY:
+        case SHT_PREINIT_ARRAY:
+        case SHT_GROUP:
+        case SHT_SYMTAB_SHNDX:
+        case SHT_RELR:
+            break;
+    }
+    
+    printf(
+        "not implemented: %s (%d)\n\n",
+        get_section_name(elf_file, shndx), shndx
+    );
+}
+
+void print_section_strtab(ElfFile elf_file, int shndx) {
+    if (elf_file.section_table[shndx].sh_type != SHT_STRTAB) {
+        printf("section header %d is not a strtab\n", shndx);
+        return;
+    }
+
+    Elf64_Off sh_offset = elf_file.section_table[shndx].sh_offset;
+    Elf64_Xword sh_size = elf_file.section_table[shndx].sh_size;
+    const char *section_name = get_section_name(elf_file, shndx);
+    const char *chars = elf_file.origin + sh_offset;
+    const char *cur_str = chars;
+
+    printf("0x%08lX [START section %d (%s)]\n", sh_offset, shndx, section_name);
+    for (int i = 0; i < sh_size; i++) {
+        if (chars[i] != '\0') continue;
+
+        printf(
+            "0x%08lX (%ld bytes) offset %ld: \"%s\\0\"\n",
+            cur_str - elf_file.origin,
+            chars + i + 1 - cur_str,
+            cur_str - chars,
+            cur_str
+        );
+
+        if (i < sh_size - 1) cur_str = chars + i + 1;
+    }
+    printf(
+        "0x%08lX [END section %d (%s)]\n\n",
+        sh_offset + sh_size,
+        shndx,
+        section_name
+    );
+}
+
+void print_section_header(ElfFile elf_file, int shndx) {
+    Elf64_Shdr header = elf_file.section_table[shndx];
+    Elf64_Off header_offset = shndx * sizeof(Elf64_Shdr) + elf_file.header->e_shoff;
+
+    printf("0x%08lX [START section header %d]\n", header_offset, shndx);
+
+    PRINT_FIELD(header, sh_name, header_offset, "%d");
+    printf(" (%s)\n", get_section_name(elf_file, shndx));
+
+    PRINT_FIELD(header, sh_type, header_offset, "%d");
+    printf(" (%s)\n", sh_type_str(elf_file.section_table[shndx].sh_type));
+
+    PRINT_FIELD(header, sh_flags, header_offset, "0x%016lX");
+    char flags[FLAGS_STR_LEN] = {0};
+    populate_section_header_flags(header.sh_flags, (char *) &flags);
+    if (flags[0] != '\0') printf(" (%s)", flags);
+    printf("\n");
+
+    PRINT_FIELD(header, sh_addr, header_offset, "0x%lX\n");
+
+    PRINT_FIELD(header, sh_offset, header_offset, "0x%lX");
+    printf(" (ends 0x%lX)\n", header.sh_offset + header.sh_size);
+
+    PRINT_FIELD(header, sh_size, header_offset, "%lu bytes\n");
+
+    const char *sh_link_desc = NULL;
+    const char *sh_info_desc = NULL;
+    // I wanted to use SHF_INFO_LINK but either it wasn't set correctly by the
+    // assembler or I'm misunderstanding how it works
+    bool sh_info_is_shndx = true;
+
+    switch (header.sh_type) {
+        case SHT_DYNAMIC:
+            sh_link_desc = "string table shndx";
+            sh_info_desc = "should be 0";
+            break;
+        
+        case SHT_HASH:
+            sh_link_desc = "symbol table shndx";
+            sh_info_desc = "should be 0";
+            break;
+
+        case SHT_REL:
+        case SHT_RELA:
+            sh_link_desc = "symbol table shndx";
+            sh_info_desc = "shndx to which relocation applies";
+            break;
+
+        case SHT_SYMTAB:
+        case SHT_DYNSYM:
+            sh_link_desc = "string table shndx";
+            sh_info_desc = "stndx of last local symbol +1";
+            sh_info_is_shndx = false;
+            break;
+
+        case SHT_GROUP:
+            sh_link_desc = "symbol table shndx";
+            sh_info_desc = "stndx of signature name";
+            break;
+
+        case SHT_SYMTAB_SHNDX:
+            sh_link_desc = "symbol table shndx";
+            sh_info_desc = "should be 0";
+            break;
+    }
+
+    PRINT_FIELD(header, sh_link, header_offset, "%u");
+    printf(" (%s)", shn_str(header.sh_link));
+    if (sh_link_desc) printf(" (%s)", sh_link_desc);
+    printf("\n");
+
+    PRINT_FIELD(header, sh_info, header_offset, "%u");
+    if (sh_info_is_shndx) printf(" (%s)", shn_str(header.sh_link));
+    if (sh_info_desc) printf(" (%s)", sh_info_desc);
+    printf("\n");
+    
+    PRINT_FIELD(header, sh_addralign, header_offset, "%ld bytes\n");
+
+    PRINT_FIELD(header, sh_entsize, header_offset, "%ld bytes\n");
+
+    printf(
+        "0x%08lX [END section header %d]\n\n",
+        header_offset + sizeof(Elf64_Shdr) - 1,
+        shndx
+    );
+}
+
+void print_section_table(ElfFile elf_file) {
+    printf("0x%08lX [START section header table]\n", elf_file.header->e_shoff);
+
+    for (int i = 0; i < elf_file.header->e_shnum; i++) {
+        print_section_header(elf_file, i);
+    }
+
+    printf(
+        "0x%08lX [END section header table]\n\n",
+        elf_file.header->e_shoff + elf_file.header->e_shnum * sizeof(Elf64_Shdr) - 1
+    );
+}
+
+void print_elf_header(ElfFile elf_file) {
+    Elf64_Ehdr header = *elf_file.header;
+
+    printf("0x%08X [START elf header]\n", 0);
+
+    PRINT_FIELD(header, e_ident[EI_MAG0], 0, "0x%X\n");
+    PRINT_FIELD(header, e_ident[EI_MAG1], 0, "'%c'\n");
+    PRINT_FIELD(header, e_ident[EI_MAG2], 0, "'%c'\n");
+    PRINT_FIELD(header, e_ident[EI_MAG3], 0, "'%c'\n");
+
+    PRINT_FIELD(header, e_ident[EI_CLASS], 0, "%d");
+    printf(" (%s)\n",
+        (char *[]) {
+            "ELFCLASSNONE",
+            "ELFCLASS32",
+            "ELFCLASS64"
+        }[header.e_ident[EI_CLASS]]
+    );
+
+    PRINT_FIELD(header, e_ident[EI_DATA], 0, "%d");
+    printf(" (%s)\n",
+        (char *[]) {
+            "ELFDATANONE",
+            "ELFDATA2LSB (2's complement little endian)",
+            "ELFDATA2MSB (2's complement big endian)"
+        }[header.e_ident[EI_DATA]]
+    );
+
+    PRINT_FIELD(header, e_ident[EI_VERSION], 0, "%d");
+    printf(" (should be %d (EV_CURRENT))\n", EV_CURRENT);
+
+    PRINT_FIELD(header, e_ident[EI_OSABI], 0, "%d");
+    if (header.e_ident[EI_OSABI] == ELFOSABI_NONE) printf(" (no extensions)");
+    printf("\n");
+
+    PRINT_FIELD(header, e_ident[EI_ABIVERSION], 0, "%d\n");
+
+    PRINT_FIELD(header, e_ident[EI_PAD], 0, "%d");
+    printf(
+        " (%ld bytes of padding)\n",
+        EI_NIDENT - offsetof(Elf64_Ehdr, e_ident[EI_PAD])
+    );
+
+    printf("0x%08X ... 0x%08X\n", 0xA, 0xF);
+
+    PRINT_FIELD(header, e_type, 0, "%d");
+    printf(" (%s)\n", e_type_str(header.e_type));
+
+    PRINT_FIELD(header, e_machine, 0, "%d");
+    printf(" (should be %d (EM_X86_64))\n", EM_X86_64);
+
+    PRINT_FIELD(header, e_version, 0, "%d");
+    printf(" (should be %d (EV_CURRENT))\n", EV_CURRENT);
+
+    PRINT_FIELD(header, e_entry, 0, "0x%lX\n");
+    PRINT_FIELD(header, e_phoff, 0, "0x%lX\n");
+    PRINT_FIELD(header, e_shoff, 0, "0x%lX\n");
+    PRINT_FIELD(header, e_flags, 0, "0x%08X\n");
+    PRINT_FIELD(header, e_ehsize, 0, "%d bytes\n");
+    PRINT_FIELD(header, e_phentsize, 0, "%d bytes\n");
+    PRINT_FIELD(header, e_phnum, 0, "%d\n");
+    PRINT_FIELD(header, e_shentsize, 0, "%d bytes\n");
+    PRINT_FIELD(header, e_shnum, 0, "%d\n");
+
+    PRINT_FIELD(header, e_shstrndx, 0, "%d");
+    printf(" (%s)\n", shn_str(header.e_shstrndx));
+
+    printf(
+        "0x%08lX [END elf header]\n\n",
+        offsetof(Elf64_Ehdr, e_shstrndx) + sizeof(header.e_shstrndx) - 1
+    );
+}
+
+ElfFile create_elf_file(char *mmapped_file) {
+    ElfFile elf_file;
+
+    elf_file.origin = mmapped_file;
+
+    elf_file.header = (Elf64_Ehdr *) elf_file.origin;
+
+    elf_file.section_table =
+        (Elf64_Shdr *) (elf_file.origin + elf_file.header->e_shoff);
+    
+    for (int i = 0; i < elf_file.header->e_shnum; i++) {
+        if (elf_file.section_table[i].sh_type != SHT_SYMTAB) continue;
+
+        elf_file.symtab_shndx = i;
+    }
+
+    return elf_file;
+}
+
+
+
+
+
+
+
+// typedef struct {
+//     int offset;
+//     char *str;
+// } OffsetAndStr;
+
+// #define PRINT_OFFSET(t, i) printf("offset of " #i ": %d\n", offsetof(t, i))
+// #define GET_OFFSET_AND_STR(t, i) ((OffsetAndStr) { offsetof(t, i), #i })
+
+// void print_elf_header_bytes(Elf64_Ehdr *elf_header) {
+//     OffsetAndStr ehdr_offsets_and_strs[] = {
+//         // GET_OFFSET_AND_STR(Elf64_Ehdr, e_ident),
+//         { 0, "EI_MAG0" },
+//         { 1, "EI_MAG1" },
+//         { 2, "EI_MAG2" },
+//         { 3, "EI_MAG3" },
+//         { 4, "EI_CLASS" },
+//         { 5, "EI_DATA" },
+//         { 6, "EI_VERSION" },
+//         { 7, "EI_OSABI" },
+//         { 8, "EI_ABIVER" },
+//         { 9, "EI_PAD" },
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_type),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_machine),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_version),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_entry),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_phoff),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shoff),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_flags),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_ehsize),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_phentsize),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_phnum),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shentsize),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shnum),
+//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shstrndx)
+//     };
+
+//     for (int i = 0; i < ehdr_offset_count; i++) {
+//         printf(
+//             "offset of %s: %d\n",
+//             ehdr_offsets_and_strs[i].str,
+//             ehdr_offsets_and_strs[i].offset
+//         );
+//     }
+//     printf("\n\n");
+
+//     printf(
+//         "Elf64_Ehdr (%d bytes from 0x%04x to 0x%04x):\n\n",
+//         elf_header->e_ehsize,
+//         0,
+//         0 + elf_header->e_ehsize
+//     );
+//     int i = 0;
+//     int offset_i = 0;
+//     while (i < elf_header->e_ehsize) {
+//         int row_width = elf_header->e_ehsize - i;
+//         if (row_width > 8) row_width = 8;
+
+//         for (int j = i; j < i + row_width; j++) {
+//             printf("0x%04x       ", j);
+//         }
+//         printf("\n");
+
+//         for (int j = i; j < i + row_width; j++) {
+//             printf("0x%02x         ", ((char *) elf_header)[j]);
+//         }
+//         printf("\n");
+
+//         for (int j = i; j < i + row_width; j++) {
+//             if (offset_i == 0 ||
+//                 ehdr_offsets_and_strs[offset_i].offset == j
+//             ) {
+//                 printf("%-12s ", ehdr_offsets_and_strs[offset_i].str);
+//                 offset_i++;
+//                 continue;
+//             }
+
+//             printf("%-12s ", "");
+//         }
+//         printf("\n\n");
+
+//         i += 8;
+
+//     }
+// }
