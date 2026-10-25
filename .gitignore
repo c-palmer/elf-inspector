@@ -2,3 +2,6 @@ asm/main
 asm/main.o
 
 c/main
+
+a.out
+*.o
