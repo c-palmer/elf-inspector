@@ -13,16 +13,18 @@
  *  - struct:    a struct
  *  - field:     a field of the struct
  *  - offset:    an int added to the offsetof value when printing address
- *  - conv_spec: a string containing a conversion specifier placed at the end of the
- *               printf format string
+ *  - conv_spec: a string containing a conversion specifier to print the field
  */
-#define PRINT_FIELD(struct, field, offset, conv_spec) printf( \
-    "0x%08lX (%lu bytes) %s: " conv_spec,                     \
+#define PRINT_FIELD(struct, field, offset, conv_spec) do {        \
+    printf(                                                       \
+        "0x%08lX (%lu bytes) %s: ",                               \
     offset + offsetof(typeof((struct)), field),               \
     sizeof((struct).field),                                   \
-    #struct "." #field,                                       \
-    (struct).field                                            \
-)
+        #struct "." #field                                        \
+    );                                                            \
+                                                                  \
+    printf(conv_spec, (struct).field);                            \
+} while (0)
 
 // const char *st_bind_strs[] = {
 //     "stb_local",
