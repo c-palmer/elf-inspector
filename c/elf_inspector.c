@@ -26,22 +26,26 @@
     printf(conv_spec, (struct).field);                            \
 } while (0)
 
-void populate_section_header_flags(Elf64_Xword bits, char *buf);
-char *get_section_name(ElfFile elf_file, Elf64_Half shndx);
-char *get_str_from_section(ElfFile elf_file, Elf64_Half shndx, Elf64_Off offset);
-const char *e_type_str(Elf64_Half e_type);
-const char *shn_str(ElfFile elf_file, Elf64_Half shn);
-const char *sh_type_str(int sh_type);
-const char *st_bind_str(int st_bind);
-const char *st_type_str(int st_bind);
-const char *st_visibility_str(int st_visibility);
-bool is_valid_shndx(ElfFile elf_file, Elf64_Half shndx);
+static void populate_section_header_flags(Elf64_Xword bits, char *buf);
+static char *get_section_name(ElfFile elf_file, Elf64_Half shndx);
+static char *get_str_from_section(
+    ElfFile elf_file,
+    Elf64_Half shndx,
+    Elf64_Off offset
+);
+static const char *e_type_str(Elf64_Half e_type);
+static const char *shn_str(ElfFile elf_file, Elf64_Half shn);
+static const char *sh_type_str(int sh_type);
+static const char *st_bind_str(int st_bind);
+static const char *st_type_str(int st_bind);
+static const char *st_visibility_str(int st_visibility);
+static bool is_valid_shndx(ElfFile elf_file, Elf64_Half shndx);
 
-bool is_valid_shndx(ElfFile elf_file, Elf64_Half shndx) {
+static bool is_valid_shndx(ElfFile elf_file, Elf64_Half shndx) {
     return shndx != SHN_UNDEF && shndx < elf_file.header->e_shnum;
 }
 
-const char *st_visibility_str(int st_visibility) {
+static const char *st_visibility_str(int st_visibility) {
     switch (st_visibility) {
         case STV_DEFAULT: return "STV_DEFAULT";
         case STV_INTERNAL: return "STV_INTERNAL";
@@ -55,7 +59,7 @@ const char *st_visibility_str(int st_visibility) {
     return "ERROR unrecognized";
 }
 
-const char *st_type_str(int st_bind) {
+static const char *st_type_str(int st_bind) {
     switch (st_bind) {
         case STT_NOTYPE: return "STT_NOTYPE";
         case STT_OBJECT: return "STT_OBJECT";
@@ -72,7 +76,7 @@ const char *st_type_str(int st_bind) {
     return "ERROR unrecognized";
 }
 
-const char *st_bind_str(int st_bind) {
+static const char *st_bind_str(int st_bind) {
     switch (st_bind) {
         case STB_LOCAL: return "STB_LOCAL";
         case STB_GLOBAL: return "STB_GLOBAL";
@@ -85,7 +89,7 @@ const char *st_bind_str(int st_bind) {
     return "ERROR unrecognized";
 }
 
-const char *sh_type_str(int sh_type) {
+static const char *sh_type_str(int sh_type) {
     switch (sh_type) {
         case SHT_NULL: return "SHT_NULL";
         case SHT_PROGBITS: return "SHT_PROGBITS";
@@ -118,7 +122,7 @@ const char *sh_type_str(int sh_type) {
     return "ERROR unrecognized";
 }
 
-const char *shn_str(ElfFile elf_file, Elf64_Half shn) {
+static const char *shn_str(ElfFile elf_file, Elf64_Half shn) {
     if (shn == SHN_UNDEF) return "SHN_UNDEF";
 
     if (is_valid_shndx(elf_file, shn)) return "normal index";
@@ -136,7 +140,7 @@ const char *shn_str(ElfFile elf_file, Elf64_Half shn) {
     return "ERROR unrecognized";
 }
 
-const char *e_type_str(Elf64_Half e_type) {
+static const char *e_type_str(Elf64_Half e_type) {
     switch (e_type) {
         case ET_NONE: return "ET_NONE";
         case ET_REL: return "ET_REL";
@@ -152,7 +156,7 @@ const char *e_type_str(Elf64_Half e_type) {
     return "ERROR unrecognized";
 }
 
-char *get_str_from_section(ElfFile elf_file, Elf64_Half shndx, Elf64_Off offset) {
+static char *get_str_from_section(ElfFile elf_file, Elf64_Half shndx, Elf64_Off offset) {
     if (elf_file.section_table[shndx].sh_type != SHT_STRTAB) return NULL;
 
     return elf_file.origin
@@ -160,7 +164,7 @@ char *get_str_from_section(ElfFile elf_file, Elf64_Half shndx, Elf64_Off offset)
          + offset;
 }
 
-char *get_section_name(ElfFile elf_file, Elf64_Half shndx) {
+static char *get_section_name(ElfFile elf_file, Elf64_Half shndx) {
     if (shndx >= elf_file.header->e_shnum) return NULL;
 
     return get_str_from_section(
@@ -170,7 +174,7 @@ char *get_section_name(ElfFile elf_file, Elf64_Half shndx) {
     );
 }
 
-void populate_section_header_flags(Elf64_Xword bits, char *buf) {
+static void populate_section_header_flags(Elf64_Xword bits, char *buf) {
     typedef struct {
         char flag;
         Elf64_Xword mask;
@@ -199,6 +203,12 @@ void populate_section_header_flags(Elf64_Xword bits, char *buf) {
         }
     }
 }
+
+
+
+
+
+
 
 void print_section_symtab(ElfFile elf_file, Elf64_Half shndx) {
     if (elf_file.section_table[shndx].sh_type != SHT_SYMTAB) {
