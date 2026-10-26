@@ -18,8 +18,8 @@
 #define PRINT_FIELD(struct, field, offset, conv_spec) do {        \
     printf(                                                       \
         "0x%08lX (%lu bytes) %s: ",                               \
-    offset + offsetof(typeof((struct)), field),               \
-    sizeof((struct).field),                                   \
+        offset + offsetof(typeof((struct)), field),               \
+        sizeof((struct).field),                                   \
         #struct "." #field                                        \
     );                                                            \
                                                                   \
