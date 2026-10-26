@@ -25,4 +25,4 @@ printf "assembly output:\n"
 
 printf "\nelf inspector:\n"
 
-./c/main asm/main.o
+./c/main "$1"
