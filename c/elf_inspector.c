@@ -235,7 +235,91 @@ void populate_section_header_flags(Elf64_Xword bits, char *buf) {
     }
 }
 
+void print_section_symtab(ElfFile elf_file, Elf64_Half shndx) {
+    if (elf_file.section_table[shndx].sh_type != SHT_SYMTAB) {
+        printf("section header %d is not a symtab\n", shndx);
+        return;
+    }
 
+    Elf64_Shdr symbol_header = elf_file.section_table[4];
+    Elf64_Sym *symbol_table =
+        (Elf64_Sym *) (elf_file.origin + symbol_header.sh_offset);
+    int symbol_count = symbol_header.sh_size / symbol_header.sh_entsize;
+    int strtab_ndx = symbol_header.sh_link;
+
+
+    printf("0x%08lX [START symbol table]\n", symbol_header.sh_offset);
+
+    for (int i = 0; i < symbol_count; i++) {
+        Elf64_Sym symbol = symbol_table[i];
+        Elf64_Off section_offset = symbol_header.sh_offset + i * sizeof(Elf64_Sym);
+
+        printf("0x%08lX [START symbol %d]\n", section_offset, i);
+
+        PRINT_FIELD(symbol, st_name, section_offset, "%d");
+        printf(
+            " (%s)",
+            get_str_from_section(elf_file, strtab_ndx, symbol.st_name)
+        );
+        if (symbol.st_name == 0 && ELF64_ST_TYPE(symbol.st_info) == STT_SECTION) {
+            printf(
+                " (section %s (type is STT_SECTION))",
+                get_section_name(elf_file, symbol.st_shndx)
+            );
+        }
+        printf("\n");
+
+        PRINT_FIELD(symbol, st_info, section_offset, "0x%X");
+        int st_bind = ELF64_ST_BIND(symbol.st_info);
+        int st_type = ELF64_ST_TYPE(symbol.st_info);
+        printf(" (binding: %d (%s))", st_bind, st_bind_str(st_bind));
+        printf(" (type: %d (%s))\n", st_type, st_type_str(st_type));
+
+        PRINT_FIELD(symbol, st_other, section_offset, "0x%X");
+        int st_visibility = ELF64_ST_VISIBILITY(symbol.st_other);
+        printf(
+            " (visibility: %d (%s))\n",
+            st_visibility,
+            st_visibility_str(st_visibility)
+        );
+
+        PRINT_FIELD(symbol, st_shndx, section_offset, "%d");
+        printf(" (%s)\n", shn_str(symbol.st_shndx));
+
+        const char *conv_spec = "0x%lX vaddress\n";
+
+        if (elf_file.header->e_type == ET_REL) {
+            switch (symbol.st_shndx) {
+                case SHN_ABS:
+                    conv_spec = "%ld absolute value (ET_REL && SHN_ABS)\n";
+                    break;
+
+                case SHN_COMMON:
+                    conv_spec =  "%ld alignment (ET_REL && SHN_COMMON)\n";
+                    break;
+
+                default:
+                    conv_spec = "%ld offset (ET_REL && normal index)\n";
+                    break;
+            }
+        }
+
+        PRINT_FIELD(symbol, st_value, section_offset, conv_spec);
+
+        PRINT_FIELD(symbol, st_size, section_offset, "%lu bytes\n");
+
+        printf(
+            "0x%08lX [END symbol %d]\n\n",
+            section_offset + sizeof(Elf64_Sym),
+            i
+        );
+    }
+
+    printf(
+        "0x%08lX [END symbol table]\n\n",
+        symbol_header.sh_offset + symbol_count * sizeof(Elf64_Sym)
+    );
+}
 
 void print_sections(ElfFile elf_file) {
     Elf64_Half shnum = elf_file.header->e_shnum;
