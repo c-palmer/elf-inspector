@@ -13,9 +13,9 @@ typedef struct {
 ElfFile create_elf_file(char *mmapped_file);
 void print_elf_header(ElfFile elf_file);
 void print_section_table(ElfFile elf_file);
-void print_section_header(ElfFile elf_file, int shndx);
-void print_section_strtab(ElfFile elf_file, int shndx);
-void print_section(ElfFile elf_file, int shndx);
+void print_section_header(ElfFile elf_file, Elf64_Half shndx);
+void print_section_strtab(ElfFile elf_file, Elf64_Half shndx);
+void print_section(ElfFile elf_file, Elf64_Half shndx);
 void print_sections(ElfFile elf_file);
 void print_section_symtab(ElfFile elf_file, Elf64_Half shndx);
 

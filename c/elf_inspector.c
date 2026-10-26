@@ -27,8 +27,8 @@
 } while (0)
 
 void populate_section_header_flags(Elf64_Xword bits, char *buf);
-char *get_section_name(ElfFile elf_file, int shndx);
-char *get_str_from_section(ElfFile elf_file, int shndx, int offset);
+char *get_section_name(ElfFile elf_file, Elf64_Half shndx);
+char *get_str_from_section(ElfFile elf_file, Elf64_Half shndx, Elf64_Off offset);
 const char *e_type_str(Elf64_Half e_type);
 const char *shn_str(ElfFile elf_file, Elf64_Half shn);
 const char *sh_type_str(int sh_type);
@@ -152,7 +152,7 @@ const char *e_type_str(Elf64_Half e_type) {
     return "ERROR unrecognized";
 }
 
-char *get_str_from_section(ElfFile elf_file, int shndx, int offset) {
+char *get_str_from_section(ElfFile elf_file, Elf64_Half shndx, Elf64_Off offset) {
     if (elf_file.section_table[shndx].sh_type != SHT_STRTAB) return NULL;
 
     return elf_file.origin
@@ -160,7 +160,7 @@ char *get_str_from_section(ElfFile elf_file, int shndx, int offset) {
          + offset;
 }
 
-char *get_section_name(ElfFile elf_file, int shndx) {
+char *get_section_name(ElfFile elf_file, Elf64_Half shndx) {
     if (shndx >= elf_file.header->e_shnum) return NULL;
 
     return get_str_from_section(
@@ -313,7 +313,7 @@ void print_sections(ElfFile elf_file) {
     );
 }
 
-void print_section(ElfFile elf_file, int shndx) {
+void print_section(ElfFile elf_file, Elf64_Half shndx) {
     if (shndx == SHT_NULL) return;
 
     switch (elf_file.section_table[shndx].sh_type) {
@@ -351,7 +351,7 @@ void print_section(ElfFile elf_file, int shndx) {
     );
 }
 
-void print_section_strtab(ElfFile elf_file, int shndx) {
+void print_section_strtab(ElfFile elf_file, Elf64_Half shndx) {
     if (elf_file.section_table[shndx].sh_type != SHT_STRTAB) {
         printf("section header %d is not a strtab\n", shndx);
         return;
@@ -385,7 +385,7 @@ void print_section_strtab(ElfFile elf_file, int shndx) {
     );
 }
 
-void print_section_header(ElfFile elf_file, int shndx) {
+void print_section_header(ElfFile elf_file, Elf64_Half shndx) {
     Elf64_Shdr header = elf_file.section_table[shndx];
     Elf64_Off header_offset = shndx * sizeof(Elf64_Shdr) + elf_file.header->e_shoff;
 
