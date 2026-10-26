@@ -26,46 +26,6 @@
     printf(conv_spec, (struct).field);                            \
 } while (0)
 
-// const char *st_bind_strs[] = {
-//     "stb_local",
-//     "stb_global",
-//     "stb_weak",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "stb_loos",
-//     "ERROR invalid",
-//     "stb_hios",
-//     "stb_loproc",
-//     "stb_hiproc"
-// };
-
-// const char *st_type_strs[] = {
-//     "STT_NOTYPE",
-//     "STT_OBJECT",
-//     "STT_FUNC",
-//     "STT_SECTION",
-//     "STT_FILE",
-//     "STT_COMMON",
-//     "STT_TLS",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "ERROR invalid",
-//     "STT_LOOS",
-//     "ERROR invalid",
-//     "STT_HIOS",
-//     "STT_LOPROC",
-//     "ERROR invalid",
-//     "STT_HIPROC"
-// };
-
-
-
-
 void populate_section_header_flags(Elf64_Xword bits, char *buf);
 char *get_section_name(ElfFile elf_file, int shndx);
 char *get_str_from_section(ElfFile elf_file, int shndx, int offset);
@@ -248,7 +208,12 @@ void print_section_symtab(ElfFile elf_file, Elf64_Half shndx) {
     int strtab_ndx = symbol_header.sh_link;
 
 
-    printf("0x%08lX [START symbol table]\n", symbol_header.sh_offset);
+    printf(
+        "0x%08lX [START section %d (%s)]\n",
+        symbol_header.sh_offset,
+        shndx,
+        get_section_name(elf_file, shndx)
+    );
 
     for (int i = 0; i < symbol_count; i++) {
         Elf64_Sym symbol = symbol_table[i];
@@ -316,8 +281,10 @@ void print_section_symtab(ElfFile elf_file, Elf64_Half shndx) {
     }
 
     printf(
-        "0x%08lX [END symbol table]\n\n",
-        symbol_header.sh_offset + symbol_count * sizeof(Elf64_Sym)
+        "0x%08lX [END section %d (%s)]\n\n",
+        symbol_header.sh_offset + symbol_count * sizeof(Elf64_Sym),
+        shndx,
+        get_section_name(elf_file, shndx)
     );
 }
 
@@ -331,7 +298,7 @@ void print_sections(ElfFile elf_file) {
     }
 
     printf(
-        "0x%08lX [END sections]\n",
+        "0x%08lX [END sections]\n\n",
         elf_file.section_table[shnum - 1].sh_offset +
         elf_file.section_table[shnum - 1].sh_size
     );
@@ -491,7 +458,7 @@ void print_section_header(ElfFile elf_file, int shndx) {
 
     printf(
         "0x%08lX [END section header %d]\n\n",
-        header_offset + sizeof(Elf64_Shdr) - 1,
+        header_offset + sizeof(Elf64_Shdr),
         shndx
     );
 }
@@ -505,7 +472,7 @@ void print_section_table(ElfFile elf_file) {
 
     printf(
         "0x%08lX [END section header table]\n\n",
-        elf_file.header->e_shoff + elf_file.header->e_shnum * sizeof(Elf64_Shdr) - 1
+        elf_file.header->e_shoff + elf_file.header->e_shnum * sizeof(Elf64_Shdr)
     );
 }
 
@@ -578,7 +545,7 @@ void print_elf_header(ElfFile elf_file) {
 
     printf(
         "0x%08lX [END elf header]\n\n",
-        offsetof(Elf64_Ehdr, e_shstrndx) + sizeof(header.e_shstrndx) - 1
+        sizeof(Elf64_Ehdr)
     );
 }
 
@@ -600,94 +567,3 @@ ElfFile create_elf_file(char *mmapped_file) {
 
     return elf_file;
 }
-
-
-
-
-
-
-
-// typedef struct {
-//     int offset;
-//     char *str;
-// } OffsetAndStr;
-
-// #define PRINT_OFFSET(t, i) printf("offset of " #i ": %d\n", offsetof(t, i))
-// #define GET_OFFSET_AND_STR(t, i) ((OffsetAndStr) { offsetof(t, i), #i })
-
-// void print_elf_header_bytes(Elf64_Ehdr *elf_header) {
-//     OffsetAndStr ehdr_offsets_and_strs[] = {
-//         // GET_OFFSET_AND_STR(Elf64_Ehdr, e_ident),
-//         { 0, "EI_MAG0" },
-//         { 1, "EI_MAG1" },
-//         { 2, "EI_MAG2" },
-//         { 3, "EI_MAG3" },
-//         { 4, "EI_CLASS" },
-//         { 5, "EI_DATA" },
-//         { 6, "EI_VERSION" },
-//         { 7, "EI_OSABI" },
-//         { 8, "EI_ABIVER" },
-//         { 9, "EI_PAD" },
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_type),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_machine),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_version),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_entry),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_phoff),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shoff),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_flags),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_ehsize),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_phentsize),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_phnum),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shentsize),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shnum),
-//         GET_OFFSET_AND_STR(Elf64_Ehdr, e_shstrndx)
-//     };
-
-//     for (int i = 0; i < ehdr_offset_count; i++) {
-//         printf(
-//             "offset of %s: %d\n",
-//             ehdr_offsets_and_strs[i].str,
-//             ehdr_offsets_and_strs[i].offset
-//         );
-//     }
-//     printf("\n\n");
-
-//     printf(
-//         "Elf64_Ehdr (%d bytes from 0x%04x to 0x%04x):\n\n",
-//         elf_header->e_ehsize,
-//         0,
-//         0 + elf_header->e_ehsize
-//     );
-//     int i = 0;
-//     int offset_i = 0;
-//     while (i < elf_header->e_ehsize) {
-//         int row_width = elf_header->e_ehsize - i;
-//         if (row_width > 8) row_width = 8;
-
-//         for (int j = i; j < i + row_width; j++) {
-//             printf("0x%04x       ", j);
-//         }
-//         printf("\n");
-
-//         for (int j = i; j < i + row_width; j++) {
-//             printf("0x%02x         ", ((char *) elf_header)[j]);
-//         }
-//         printf("\n");
-
-//         for (int j = i; j < i + row_width; j++) {
-//             if (offset_i == 0 ||
-//                 ehdr_offsets_and_strs[offset_i].offset == j
-//             ) {
-//                 printf("%-12s ", ehdr_offsets_and_strs[offset_i].str);
-//                 offset_i++;
-//                 continue;
-//             }
-
-//             printf("%-12s ", "");
-//         }
-//         printf("\n\n");
-
-//         i += 8;
-
-//     }
-// }

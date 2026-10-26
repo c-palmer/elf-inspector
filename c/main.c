@@ -41,59 +41,6 @@ int main(int argc, char **argv) {
     // Elf64_Shdr *section_table = (Elf64_Shdr *) (mmap_addr + elf_header->e_shoff);
 
 
-    // print_section_header(elf_file, 4);
-
-    // printf("%s\n", get_section_name(elf_file, 4));
-
-    // Elf64_Shdr symbol_header = elf_file.section_table[4];
-    // Elf64_Sym *symbol_table =
-    //     (Elf64_Sym *) (elf_file.origin + symbol_header.sh_offset);
-    // int symbol_count = symbol_header.sh_size / symbol_header.sh_entsize;
-    // int strtab_ndx = symbol_header.sh_link;
-
-    // for (int i = 0; i < symbol_count; i++) {
-    //     Elf64_Sym symbol = symbol_table[i];
-    //     int initial_offset = symbol_header.sh_offset + i * sizeof(Elf64_Sym);
-
-    //     printf(
-    //         "0x%08X (%d bytes) symbol_table[%d]->st_name: %d (%s)\n",
-    //         initial_offset + offsetof(Elf64_Sym, st_name),
-    //         sizeof(symbol.st_name),
-    //         i,
-    //         symbol.st_name,
-    //         get_str(elf_file, strtab_ndx, symbol.st_name)
-    //     );
-
-    //     printf(
-    //         "0x%08X (%d bytes) symbol_table[%d]->st_info: 0x%X",
-    //         initial_offset + offsetof(Elf64_Sym, st_info),
-    //         sizeof(symbol.st_info),
-    //         i,
-    //         symbol.st_info,
-    //         get_str(elf_file, strtab_ndx, symbol.st_info)
-    //     );
-
-    //     int st_bind = ELF64_ST_BIND(symbol.st_info);
-    //     int st_type = ELF64_ST_TYPE(symbol.st_info);
-
-    //     printf(" (binding: %d (%s))", st_bind, st_bind_str(st_bind));
-    //     printf(" (type: %d (%s))\n", st_type, st_type_str(st_type));
-
-    //     printf(
-    //         "0x%08X (%d bytes) symbol_table[%d]->st_other: 0x%X\n",
-    //         initial_offset + offsetof(Elf64_Sym, st_other),
-    //         sizeof(symbol.st_other),
-    //         i,
-    //         symbol.st_other,
-    //         get_str(elf_file, strtab_ndx, symbol.st_other)
-    //     );
-
-        // printf("st_shndx: %d\n", );
-        // printf("st_value: 0x%X\n", );
-        // printf("st_size: %d bytes\n", );
-
-    //     printf("\n");
-    // }
 
 
 

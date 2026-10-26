@@ -19,22 +19,6 @@ void print_section(ElfFile elf_file, int shndx);
 void print_sections(ElfFile elf_file);
 void print_section_symtab(ElfFile elf_file, Elf64_Half shndx);
 
-
-
-
-// const int screen_width = 107;
-// const int ehdr_offset_count = 23;
-
-// void print_section(
-//     Elf64_Shdr *section_table,
-//     Elf64_Ehdr *elf_header,
-//     char *elf_origin
-// );
-
-
-
-
-
 // void print_elf_header_bytes(Elf64_Ehdr *elf_header);
 
 #endif /* elf_inspector.h */
