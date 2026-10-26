@@ -206,7 +206,7 @@ void print_section_symtab(ElfFile elf_file, Elf64_Half shndx) {
         return;
     }
 
-    Elf64_Shdr symbol_header = elf_file.section_table[4];
+    Elf64_Shdr symbol_header = elf_file.section_table[shndx];
     Elf64_Sym *symbol_table =
         (Elf64_Sym *) (elf_file.origin + symbol_header.sh_offset);
     int symbol_count = symbol_header.sh_size / symbol_header.sh_entsize;
