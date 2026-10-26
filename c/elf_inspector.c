@@ -172,19 +172,19 @@ void populate_section_header_flags(Elf64_Xword bits, char *buf) {
     } FlagAndMask;
 
     FlagAndMask data[] = {
-        { 'W', 0x1 },
-        { 'A', 0x2 },
-        { 'X', 0x4 },
-        { 'M', 0x10 },
-        { 'S', 0x20 },
-        { 'I', 0x40 },
-        { 'L', 0x80 },
-        { 'O', 0x100 },
-        { 'G', 0x200 },
-        { 'T', 0x400 },
-        { 'C', 0x800 },
-        { 'o', 0x0FF00000 },
-        { 'p', 0xF0000000 }
+        { 'W', 0x1 },        // SHF_WRITE
+        { 'A', 0x2 },        // SHF_ALLOC
+        { 'X', 0x4 },        // SHF_EXECINSTR
+        { 'M', 0x10 },       // SHF_MERGE
+        { 'S', 0x20 },       // SHF_STRINGS
+        { 'I', 0x40 },       // SHF_INFO_LINK
+        { 'L', 0x80 },       // SHF_LINK_ORDER
+        { 'O', 0x100 },      // SHF_OS_NONCONFORMING
+        { 'G', 0x200 },      // SHF_GROUP
+        { 'T', 0x400 },      // SHF_TLS
+        { 'C', 0x800 },      // SHF_COMPRESSED
+        { 'o', 0x0FF00000 }, // SHF_MASKOS
+        { 'p', 0xF0000000 }  // SHF_MASKPROC
     };
 
     int buf_i = 0;
