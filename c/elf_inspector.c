@@ -342,8 +342,11 @@ void print_section(ElfFile elf_file, int shndx) {
 
     switch (elf_file.section_table[shndx].sh_type) {
         case SHT_PROGBITS:
-        case SHT_SYMTAB:
             break;
+
+        case SHT_SYMTAB:
+            print_section_symtab(elf_file, shndx);
+            return;
 
         case SHT_STRTAB:
             print_section_strtab(elf_file, shndx);
