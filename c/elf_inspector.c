@@ -72,10 +72,53 @@ char *get_str_from_section(ElfFile elf_file, int shndx, int offset);
 const char *e_type_str(Elf64_Half e_type);
 const char *shn_str(Elf64_Half shn);
 const char *sh_type_str(int sh_type);
+const char *st_bind_str(int st_bind);
+const char *st_type_str(int st_bind);
+const char *st_visibility_str(int st_visibility);
 
+const char *st_visibility_str(int st_visibility) {
+    switch (st_visibility) {
+        case STV_DEFAULT: return "STV_DEFAULT";
+        case STV_INTERNAL: return "STV_INTERNAL";
+        case STV_HIDDEN: return "STV_HIDDEN";
+        case STV_PROTECTED: return "STV_PROTECTED";
+        case 4: return "STV_EXPORTED";
+        case 5: return "STV_SINGLETON";
+        case 6: return "STV_ELIMINATE";
+    }
 
+    return "ERROR unrecognized";
+}
 
+const char *st_type_str(int st_bind) {
+    switch (st_bind) {
+        case STT_NOTYPE: return "STT_NOTYPE";
+        case STT_OBJECT: return "STT_OBJECT";
+        case STT_FUNC: return "STT_FUNC";
+        case STT_SECTION: return "STT_SECTION";
+        case STT_FILE: return "STT_FILE";
+        case STT_COMMON: return "STT_COMMON";
+        case STT_TLS: return "STT_TLS";
+    }
 
+    if (STT_LOOS <= st_bind && st_bind <= STT_HIOS) return "os specific";
+    if (STT_LOPROC <= st_bind && st_bind <= STT_HIPROC) return "processor specific";
+
+    return "ERROR unrecognized";
+}
+
+const char *st_bind_str(int st_bind) {
+    switch (st_bind) {
+        case STB_LOCAL: return "STB_LOCAL";
+        case STB_GLOBAL: return "STB_GLOBAL";
+        case STB_WEAK: return "STB_WEAK";
+    }
+
+    if (STB_LOOS <= st_bind && st_bind <= STB_HIOS) return "os specific";
+    if (STB_LOPROC <= st_bind && st_bind <= STB_HIPROC) return "processor specific";
+
+    return "ERROR unrecognized";
+}
 
 const char *sh_type_str(int sh_type) {
     switch (sh_type) {
