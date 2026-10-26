@@ -357,14 +357,19 @@ void print_section_strtab(ElfFile elf_file, Elf64_Half shndx) {
         return;
     }
 
-    Elf64_Off sh_offset = elf_file.section_table[shndx].sh_offset;
-    Elf64_Xword sh_size = elf_file.section_table[shndx].sh_size;
+    Elf64_Off section_offset = elf_file.section_table[shndx].sh_offset;
+    Elf64_Xword section_size = elf_file.section_table[shndx].sh_size;
     const char *section_name = get_section_name(elf_file, shndx);
-    const char *chars = elf_file.origin + sh_offset;
+    const char *chars = elf_file.origin + section_offset;
     const char *cur_str = chars;
 
-    printf("0x%08lX [START section %d (%s)]\n", sh_offset, shndx, section_name);
-    for (int i = 0; i < sh_size; i++) {
+    printf(
+        "0x%08lX [START section %d (%s)]\n",
+        section_offset,
+        shndx,
+        section_name);
+
+    for (int i = 0; i < section_size; i++) {
         if (chars[i] != '\0') continue;
 
         printf(
@@ -375,11 +380,12 @@ void print_section_strtab(ElfFile elf_file, Elf64_Half shndx) {
             cur_str
         );
 
-        if (i < sh_size - 1) cur_str = chars + i + 1;
+        if (i < section_size - 1) cur_str = chars + i + 1;
     }
+
     printf(
         "0x%08lX [END section %d (%s)]\n\n",
-        sh_offset + sh_size,
+        section_offset + section_size,
         shndx,
         section_name
     );
