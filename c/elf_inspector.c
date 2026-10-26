@@ -30,11 +30,16 @@ void populate_section_header_flags(Elf64_Xword bits, char *buf);
 char *get_section_name(ElfFile elf_file, int shndx);
 char *get_str_from_section(ElfFile elf_file, int shndx, int offset);
 const char *e_type_str(Elf64_Half e_type);
-const char *shn_str(Elf64_Half shn);
+const char *shn_str(ElfFile elf_file, Elf64_Half shn);
 const char *sh_type_str(int sh_type);
 const char *st_bind_str(int st_bind);
 const char *st_type_str(int st_bind);
 const char *st_visibility_str(int st_visibility);
+bool is_valid_shndx(ElfFile elf_file, Elf64_Half shndx);
+
+bool is_valid_shndx(ElfFile elf_file, Elf64_Half shndx) {
+    return shndx != SHN_UNDEF && shndx < elf_file.header->e_shnum;
+}
 
 const char *st_visibility_str(int st_visibility) {
     switch (st_visibility) {
@@ -113,10 +118,10 @@ const char *sh_type_str(int sh_type) {
     return "ERROR unrecognized";
 }
 
-const char *shn_str(Elf64_Half shn) {
+const char *shn_str(ElfFile elf_file, Elf64_Half shn) {
     if (shn == SHN_UNDEF) return "SHN_UNDEF";
 
-    if (shn < SHN_LORESERVE) return "normal index";
+    if (is_valid_shndx(elf_file, shn)) return "normal index";
 
     if (SHN_LOPROC <= shn && shn <= SHN_HIPROC) return "processor specific";
 
@@ -249,7 +254,11 @@ void print_section_symtab(ElfFile elf_file, Elf64_Half shndx) {
         );
 
         PRINT_FIELD(symbol, st_shndx, section_offset, "%d");
-        printf(" (%s)\n", shn_str(symbol.st_shndx));
+        printf(" (%s)", shn_str(elf_file, symbol.st_shndx));
+        if (is_valid_shndx(elf_file, symbol.st_shndx)) {
+            printf(" (%s)", get_section_name(elf_file, symbol.st_shndx));
+        }
+        printf("\n");
 
         const char *conv_spec = "0x%lX vaddress\n";
 
@@ -443,12 +452,21 @@ void print_section_header(ElfFile elf_file, int shndx) {
     }
 
     PRINT_FIELD(header, sh_link, header_offset, "%u");
-    printf(" (%s)", shn_str(header.sh_link));
+    printf(" (%s)", shn_str(elf_file, header.sh_link));
+    if (is_valid_shndx(elf_file, header.sh_link)) {
+        printf(" (%s)", get_section_name(elf_file, header.sh_link));
+    }
     if (sh_link_desc) printf(" (%s)", sh_link_desc);
     printf("\n");
 
     PRINT_FIELD(header, sh_info, header_offset, "%u");
-    if (sh_info_is_shndx) printf(" (%s)", shn_str(header.sh_link));
+    if (sh_info_is_shndx) {
+        printf(" (%s)", shn_str(elf_file, header.sh_link));
+
+        if (is_valid_shndx(elf_file, header.sh_info)) {
+            printf(" (%s)", get_section_name(elf_file, header.sh_info));
+        }
+    }
     if (sh_info_desc) printf(" (%s)", sh_info_desc);
     printf("\n");
     
@@ -541,7 +559,11 @@ void print_elf_header(ElfFile elf_file) {
     PRINT_FIELD(header, e_shnum, 0, "%d\n");
 
     PRINT_FIELD(header, e_shstrndx, 0, "%d");
-    printf(" (%s)\n", shn_str(header.e_shstrndx));
+    printf(" (%s)", shn_str(elf_file, header.e_shstrndx));
+    if (is_valid_shndx(elf_file, header.e_shstrndx)) {
+        printf(" (%s)", get_section_name(elf_file, header.e_shstrndx));
+    }
+    printf("\n");
 
     printf(
         "0x%08lX [END elf header]\n\n",
